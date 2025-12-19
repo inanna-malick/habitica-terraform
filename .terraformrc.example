@@ -1,0 +1,9 @@
+# Copy this to ~/.terraformrc for local development
+# This tells Terraform to use your locally-built provider instead of downloading
+
+provider_installation {
+  dev_overrides {
+    "registry.terraform.io/inannamalick/habitica" = "/Users/inannamalick/dev/terraform-habitica"
+  }
+  direct {}
+}

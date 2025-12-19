@@ -1,0 +1,16 @@
+# Binary
+terraform-provider-habitica
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
+# Generated import files (user-specific)
+examples/import/imports.tf
+examples/import/resources.tf
+examples/import/generated.tf
+
+# Temp files
+*.tmp
