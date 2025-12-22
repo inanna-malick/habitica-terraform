@@ -14,3 +14,6 @@ examples/import/generated.tf
 
 # Temp files
 *.tmp
+
+# GoReleaser
+dist/
