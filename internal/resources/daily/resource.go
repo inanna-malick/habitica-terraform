@@ -105,9 +105,8 @@ func (r *dailyResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Computed:    true,
 			},
 			"repeat": schema.SingleNestedAttribute{
-				Description: "Which days of the week the daily repeats (for weekly frequency).",
+				Description: "Which days of the week the daily repeats (for weekly frequency). Defaults to Mon-Fri if not specified.",
 				Optional:    true,
-				Computed:    true,
 				Attributes: map[string]schema.Attribute{
 					"monday": schema.BoolAttribute{
 						Description: "Repeat on Monday. Defaults to true if not specified.",
