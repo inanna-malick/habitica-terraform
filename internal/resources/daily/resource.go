@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -107,49 +106,34 @@ func (r *dailyResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"repeat": schema.SingleNestedAttribute{
 				Description: "Which days of the week the daily repeats (for weekly frequency).",
 				Optional:    true,
-				Computed:    true,
 				Attributes: map[string]schema.Attribute{
 					"monday": schema.BoolAttribute{
-						Description: "Repeat on Monday.",
+						Description: "Repeat on Monday. Defaults to true if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
 					},
 					"tuesday": schema.BoolAttribute{
-						Description: "Repeat on Tuesday.",
+						Description: "Repeat on Tuesday. Defaults to true if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
 					},
 					"wednesday": schema.BoolAttribute{
-						Description: "Repeat on Wednesday.",
+						Description: "Repeat on Wednesday. Defaults to true if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
 					},
 					"thursday": schema.BoolAttribute{
-						Description: "Repeat on Thursday.",
+						Description: "Repeat on Thursday. Defaults to true if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
 					},
 					"friday": schema.BoolAttribute{
-						Description: "Repeat on Friday.",
+						Description: "Repeat on Friday. Defaults to true if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(true),
 					},
 					"saturday": schema.BoolAttribute{
-						Description: "Repeat on Saturday.",
+						Description: "Repeat on Saturday. Defaults to false if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(false),
 					},
 					"sunday": schema.BoolAttribute{
-						Description: "Repeat on Sunday.",
+						Description: "Repeat on Sunday. Defaults to false if not specified.",
 						Optional:    true,
-						Computed:    true,
-						Default:     booldefault.StaticBool(false),
 					},
 				},
 			},
@@ -292,15 +276,27 @@ func (r *dailyResource) modelToTask(ctx context.Context, model *dailyResourceMod
 		}
 	}
 
+	// Handle repeat config with defaults
 	if model.Repeat != nil {
 		task.Repeat = &client.RepeatConfig{
-			Monday:    model.Repeat.Monday.ValueBool(),
-			Tuesday:   model.Repeat.Tuesday.ValueBool(),
-			Wednesday: model.Repeat.Wednesday.ValueBool(),
-			Thursday:  model.Repeat.Thursday.ValueBool(),
-			Friday:    model.Repeat.Friday.ValueBool(),
-			Saturday:  model.Repeat.Saturday.ValueBool(),
-			Sunday:    model.Repeat.Sunday.ValueBool(),
+			Monday:    getBoolWithDefault(model.Repeat.Monday, true),
+			Tuesday:   getBoolWithDefault(model.Repeat.Tuesday, true),
+			Wednesday: getBoolWithDefault(model.Repeat.Wednesday, true),
+			Thursday:  getBoolWithDefault(model.Repeat.Thursday, true),
+			Friday:    getBoolWithDefault(model.Repeat.Friday, true),
+			Saturday:  getBoolWithDefault(model.Repeat.Saturday, false),
+			Sunday:    getBoolWithDefault(model.Repeat.Sunday, false),
+		}
+	} else {
+		// Default repeat config if not specified: Mon-Fri
+		task.Repeat = &client.RepeatConfig{
+			Monday:    true,
+			Tuesday:   true,
+			Wednesday: true,
+			Thursday:  true,
+			Friday:    true,
+			Saturday:  false,
+			Sunday:    false,
 		}
 	}
 
@@ -387,4 +383,12 @@ func (r *dailyResource) updateModelFromTask(ctx context.Context, model *dailyRes
 
 func (r *dailyResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// getBoolWithDefault returns the bool value if not null, otherwise returns the default
+func getBoolWithDefault(val types.Bool, defaultVal bool) bool {
+	if val.IsNull() || val.IsUnknown() {
+		return defaultVal
+	}
+	return val.ValueBool()
 }
