@@ -335,15 +335,7 @@ func (r *dailyResource) updateModelFromTask(ctx context.Context, model *dailyRes
 	}
 
 	if task.Repeat != nil {
-		repeatObj, d := types.ObjectValueFrom(ctx, map[string]attr.Type{
-			"monday":    types.BoolType,
-			"tuesday":   types.BoolType,
-			"wednesday": types.BoolType,
-			"thursday":  types.BoolType,
-			"friday":    types.BoolType,
-			"saturday":  types.BoolType,
-			"sunday":    types.BoolType,
-		}, map[string]attr.Value{
+		repeatAttrs := map[string]attr.Value{
 			"monday":    types.BoolValue(task.Repeat.Monday),
 			"tuesday":   types.BoolValue(task.Repeat.Tuesday),
 			"wednesday": types.BoolValue(task.Repeat.Wednesday),
@@ -351,7 +343,16 @@ func (r *dailyResource) updateModelFromTask(ctx context.Context, model *dailyRes
 			"friday":    types.BoolValue(task.Repeat.Friday),
 			"saturday":  types.BoolValue(task.Repeat.Saturday),
 			"sunday":    types.BoolValue(task.Repeat.Sunday),
-		})
+		}
+		repeatObj, d := types.ObjectValue(map[string]attr.Type{
+			"monday":    types.BoolType,
+			"tuesday":   types.BoolType,
+			"wednesday": types.BoolType,
+			"thursday":  types.BoolType,
+			"friday":    types.BoolType,
+			"saturday":  types.BoolType,
+			"sunday":    types.BoolType,
+		}, repeatAttrs)
 		diags.Append(d...)
 		model.Repeat = repeatObj
 	} else {
