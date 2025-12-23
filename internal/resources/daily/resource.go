@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -42,20 +43,10 @@ type dailyResourceModel struct {
 	Frequency    types.String  `tfsdk:"frequency"`
 	EveryX       types.Int64   `tfsdk:"every_x"`
 	StartDate    types.String  `tfsdk:"start_date"`
-	Repeat       *repeatModel  `tfsdk:"repeat"`
+	Repeat       types.Object  `tfsdk:"repeat"`
 	DaysOfMonth  types.List    `tfsdk:"days_of_month"`
 	WeeksOfMonth types.List    `tfsdk:"weeks_of_month"`
 	Tags         types.List    `tfsdk:"tags"`
-}
-
-type repeatModel struct {
-	Monday    types.Bool `tfsdk:"monday"`
-	Tuesday   types.Bool `tfsdk:"tuesday"`
-	Wednesday types.Bool `tfsdk:"wednesday"`
-	Thursday  types.Bool `tfsdk:"thursday"`
-	Friday    types.Bool `tfsdk:"friday"`
-	Saturday  types.Bool `tfsdk:"saturday"`
-	Sunday    types.Bool `tfsdk:"sunday"`
 }
 
 func (r *dailyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -283,15 +274,16 @@ func (r *dailyResource) modelToTask(ctx context.Context, model *dailyResourceMod
 	}
 
 	// Handle repeat config with defaults
-	if model.Repeat != nil {
+	if !model.Repeat.IsNull() && !model.Repeat.IsUnknown() {
+		repeatAttrs := model.Repeat.Attributes()
 		task.Repeat = &client.RepeatConfig{
-			Monday:    getBoolWithDefault(model.Repeat.Monday, true),
-			Tuesday:   getBoolWithDefault(model.Repeat.Tuesday, true),
-			Wednesday: getBoolWithDefault(model.Repeat.Wednesday, true),
-			Thursday:  getBoolWithDefault(model.Repeat.Thursday, true),
-			Friday:    getBoolWithDefault(model.Repeat.Friday, true),
-			Saturday:  getBoolWithDefault(model.Repeat.Saturday, false),
-			Sunday:    getBoolWithDefault(model.Repeat.Sunday, false),
+			Monday:    getBoolFromObject(repeatAttrs, "monday", true),
+			Tuesday:   getBoolFromObject(repeatAttrs, "tuesday", true),
+			Wednesday: getBoolFromObject(repeatAttrs, "wednesday", true),
+			Thursday:  getBoolFromObject(repeatAttrs, "thursday", true),
+			Friday:    getBoolFromObject(repeatAttrs, "friday", true),
+			Saturday:  getBoolFromObject(repeatAttrs, "saturday", false),
+			Sunday:    getBoolFromObject(repeatAttrs, "sunday", false),
 		}
 	} else {
 		// Default repeat config if not specified: Mon-Fri
@@ -343,15 +335,35 @@ func (r *dailyResource) updateModelFromTask(ctx context.Context, model *dailyRes
 	}
 
 	if task.Repeat != nil {
-		model.Repeat = &repeatModel{
-			Monday:    types.BoolValue(task.Repeat.Monday),
-			Tuesday:   types.BoolValue(task.Repeat.Tuesday),
-			Wednesday: types.BoolValue(task.Repeat.Wednesday),
-			Thursday:  types.BoolValue(task.Repeat.Thursday),
-			Friday:    types.BoolValue(task.Repeat.Friday),
-			Saturday:  types.BoolValue(task.Repeat.Saturday),
-			Sunday:    types.BoolValue(task.Repeat.Sunday),
-		}
+		repeatObj, d := types.ObjectValueFrom(ctx, map[string]attr.Type{
+			"monday":    types.BoolType,
+			"tuesday":   types.BoolType,
+			"wednesday": types.BoolType,
+			"thursday":  types.BoolType,
+			"friday":    types.BoolType,
+			"saturday":  types.BoolType,
+			"sunday":    types.BoolType,
+		}, map[string]attr.Value{
+			"monday":    types.BoolValue(task.Repeat.Monday),
+			"tuesday":   types.BoolValue(task.Repeat.Tuesday),
+			"wednesday": types.BoolValue(task.Repeat.Wednesday),
+			"thursday":  types.BoolValue(task.Repeat.Thursday),
+			"friday":    types.BoolValue(task.Repeat.Friday),
+			"saturday":  types.BoolValue(task.Repeat.Saturday),
+			"sunday":    types.BoolValue(task.Repeat.Sunday),
+		})
+		diags.Append(d...)
+		model.Repeat = repeatObj
+	} else {
+		model.Repeat = types.ObjectNull(map[string]attr.Type{
+			"monday":    types.BoolType,
+			"tuesday":   types.BoolType,
+			"wednesday": types.BoolType,
+			"thursday":  types.BoolType,
+			"friday":    types.BoolType,
+			"saturday":  types.BoolType,
+			"sunday":    types.BoolType,
+		})
 	}
 
 	if len(task.DaysOfMonth) > 0 {
@@ -397,4 +409,16 @@ func getBoolWithDefault(val types.Bool, defaultVal bool) bool {
 		return defaultVal
 	}
 	return val.ValueBool()
+}
+
+// getBoolFromObject extracts a bool value from an object's attributes, or returns default
+func getBoolFromObject(attrs map[string]attr.Value, key string, defaultVal bool) bool {
+	if val, ok := attrs[key]; ok {
+		if boolVal, ok := val.(types.Bool); ok {
+			if !boolVal.IsNull() && !boolVal.IsUnknown() {
+				return boolVal.ValueBool()
+			}
+		}
+	}
+	return defaultVal
 }

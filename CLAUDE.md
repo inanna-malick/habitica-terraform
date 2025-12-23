@@ -193,33 +193,49 @@ Use in Create/Update: `field := getBoolWithDefault(plan.Field, true)`
 
 ### Nested Attributes
 
-For `SingleNestedAttribute` that the API can populate:
-- Make parent attribute `Optional: true, Computed: true`
-- Add `objectplanmodifier.UseStateForUnknown()` to prevent "inconsistent result" errors
-- Make child attributes `Optional: true` (no Computed, no Default)
-- Handle defaults in `modelToTask` conversion functions
-- Always populate from API response in `updateModelFromTask`
+For `SingleNestedAttribute` that the API can populate, you **MUST** use `types.Object` as the Go field type:
 
-**Example:**
+**Critical:** Custom struct pointers (like `*repeatModel`) cannot handle Terraform's Unknown values. You must use `types.Object` which is a framework type that properly handles Unknown/Null/Known states.
+
+**Schema:**
 ```go
 "repeat": schema.SingleNestedAttribute{
     Optional: true,
     Computed: true,
     PlanModifiers: []planmodifier.Object{
-        objectplanmodifier.UseStateForUnknown(),  // ✅ Prevents inconsistent result
+        objectplanmodifier.UseStateForUnknown(),
     },
     Attributes: map[string]schema.Attribute{
-        "monday": schema.BoolAttribute{
-            Optional: true,  // ✅ No Computed, no Default
-        },
+        "monday": schema.BoolAttribute{Optional: true},
+        // ...
     },
 }
 ```
 
-This pattern solves the Catch-22:
-- Without `Computed: true` → "Provider produced inconsistent result" (plan shows null, API returns object)
-- With `Computed: true` but no plan modifier → "Value Conversion Error" (can't convert Unknown to struct)
-- With `Computed: true` + `UseStateForUnknown()` → ✅ Works! (uses state value during plan)
+**Go Model:**
+```go
+type dailyResourceModel struct {
+    Repeat types.Object `tfsdk:"repeat"`  // ✅ Use types.Object, NOT *customStruct
+}
+```
+
+**Extract values:**
+```go
+if !model.Repeat.IsNull() && !model.Repeat.IsUnknown() {
+    repeatAttrs := model.Repeat.Attributes()
+    monday := getBoolFromObject(repeatAttrs, "monday", true)
+}
+```
+
+**Set values:**
+```go
+repeatObj, diags := types.ObjectValueFrom(ctx,
+    map[string]attr.Type{"monday": types.BoolType, ...},
+    map[string]attr.Value{"monday": types.BoolValue(true), ...})
+model.Repeat = repeatObj
+```
+
+This is the **only way** to avoid "Value Conversion Error" with Optional+Computed nested attributes.
 
 ## Version History
 
@@ -227,7 +243,8 @@ This pattern solves the Catch-22:
 - **v0.2.0** - Added `habitica_user_tasks` data source
 - **v0.2.1** - Fixed repeat field value conversion errors in dailies
 - **v0.2.2** - Fixed up/down field value conversion errors in habits
-- **v0.2.3** - Fixed inconsistent result after apply errors (re-added Computed without Default)
-- **v0.2.4** - Fixed unknown value conversion error on repeat field (removed Computed from nested attribute) - REGRESSION
-- **v0.2.5** - Fixed repeat field with UseStateForUnknown plan modifier (idiomatic Terraform solution)
+- **v0.2.3** - Fixed inconsistent result after apply errors (re-added Computed without Default) - REGRESSION
+- **v0.2.4** - Fixed unknown value conversion error on repeat field (removed Computed) - REGRESSION
+- **v0.2.5** - Fixed repeat field with UseStateForUnknown plan modifier - REGRESSION
+- **v0.2.6** - Fixed by changing Go type to types.Object (proper framework type for Unknown values)
 - **Test infrastructure** - Added comprehensive test coverage (58.3% client, regression tests for v0.2.1-2.2)

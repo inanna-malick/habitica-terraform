@@ -3,6 +3,7 @@ package daily
 import (
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/inannamalick/terraform-provider-habitica/internal/client"
 	"github.com/stretchr/testify/assert"
@@ -57,12 +58,20 @@ func TestGetBoolWithDefault(t *testing.T) {
 func TestDailyRepeatConfigDefaults(t *testing.T) {
 	tests := []struct {
 		name     string
-		repeat   *repeatModel
+		repeat   types.Object
 		expected *client.RepeatConfig
 	}{
 		{
-			name:   "Nil repeat uses Mon-Fri defaults",
-			repeat: nil,
+			name: "Nil repeat uses Mon-Fri defaults",
+			repeat: types.ObjectNull(map[string]attr.Type{
+				"monday":    types.BoolType,
+				"tuesday":   types.BoolType,
+				"wednesday": types.BoolType,
+				"thursday":  types.BoolType,
+				"friday":    types.BoolType,
+				"saturday":  types.BoolType,
+				"sunday":    types.BoolType,
+			}),
 			expected: &client.RepeatConfig{
 				Monday:    true,
 				Tuesday:   true,
@@ -75,15 +84,26 @@ func TestDailyRepeatConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "Empty repeat uses Mon-Fri defaults",
-			repeat: &repeatModel{
-				Monday:    types.BoolNull(),
-				Tuesday:   types.BoolNull(),
-				Wednesday: types.BoolNull(),
-				Thursday:  types.BoolNull(),
-				Friday:    types.BoolNull(),
-				Saturday:  types.BoolNull(),
-				Sunday:    types.BoolNull(),
-			},
+			repeat: types.ObjectValueMust(
+				map[string]attr.Type{
+					"monday":    types.BoolType,
+					"tuesday":   types.BoolType,
+					"wednesday": types.BoolType,
+					"thursday":  types.BoolType,
+					"friday":    types.BoolType,
+					"saturday":  types.BoolType,
+					"sunday":    types.BoolType,
+				},
+				map[string]attr.Value{
+					"monday":    types.BoolNull(),
+					"tuesday":   types.BoolNull(),
+					"wednesday": types.BoolNull(),
+					"thursday":  types.BoolNull(),
+					"friday":    types.BoolNull(),
+					"saturday":  types.BoolNull(),
+					"sunday":    types.BoolNull(),
+				},
+			),
 			expected: &client.RepeatConfig{
 				Monday:    true,
 				Tuesday:   true,
@@ -96,15 +116,26 @@ func TestDailyRepeatConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "Partial override Monday only",
-			repeat: &repeatModel{
-				Monday:    types.BoolValue(false),
-				Tuesday:   types.BoolNull(),
-				Wednesday: types.BoolNull(),
-				Thursday:  types.BoolNull(),
-				Friday:    types.BoolNull(),
-				Saturday:  types.BoolNull(),
-				Sunday:    types.BoolNull(),
-			},
+			repeat: types.ObjectValueMust(
+				map[string]attr.Type{
+					"monday":    types.BoolType,
+					"tuesday":   types.BoolType,
+					"wednesday": types.BoolType,
+					"thursday":  types.BoolType,
+					"friday":    types.BoolType,
+					"saturday":  types.BoolType,
+					"sunday":    types.BoolType,
+				},
+				map[string]attr.Value{
+					"monday":    types.BoolValue(false),
+					"tuesday":   types.BoolNull(),
+					"wednesday": types.BoolNull(),
+					"thursday":  types.BoolNull(),
+					"friday":    types.BoolNull(),
+					"saturday":  types.BoolNull(),
+					"sunday":    types.BoolNull(),
+				},
+			),
 			expected: &client.RepeatConfig{
 				Monday:    false, // overridden
 				Tuesday:   true,
@@ -117,15 +148,26 @@ func TestDailyRepeatConfigDefaults(t *testing.T) {
 		},
 		{
 			name: "Enable weekend",
-			repeat: &repeatModel{
-				Monday:    types.BoolNull(),
-				Tuesday:   types.BoolNull(),
-				Wednesday: types.BoolNull(),
-				Thursday:  types.BoolNull(),
-				Friday:    types.BoolNull(),
-				Saturday:  types.BoolValue(true),
-				Sunday:    types.BoolValue(true),
-			},
+			repeat: types.ObjectValueMust(
+				map[string]attr.Type{
+					"monday":    types.BoolType,
+					"tuesday":   types.BoolType,
+					"wednesday": types.BoolType,
+					"thursday":  types.BoolType,
+					"friday":    types.BoolType,
+					"saturday":  types.BoolType,
+					"sunday":    types.BoolType,
+				},
+				map[string]attr.Value{
+					"monday":    types.BoolNull(),
+					"tuesday":   types.BoolNull(),
+					"wednesday": types.BoolNull(),
+					"thursday":  types.BoolNull(),
+					"friday":    types.BoolNull(),
+					"saturday":  types.BoolValue(true),
+					"sunday":    types.BoolValue(true),
+				},
+			),
 			expected: &client.RepeatConfig{
 				Monday:    true,
 				Tuesday:   true,
@@ -142,15 +184,16 @@ func TestDailyRepeatConfigDefaults(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var repeatConfig *client.RepeatConfig
 
-			if tt.repeat != nil {
+			if !tt.repeat.IsNull() && !tt.repeat.IsUnknown() {
+				repeatAttrs := tt.repeat.Attributes()
 				repeatConfig = &client.RepeatConfig{
-					Monday:    getBoolWithDefault(tt.repeat.Monday, true),
-					Tuesday:   getBoolWithDefault(tt.repeat.Tuesday, true),
-					Wednesday: getBoolWithDefault(tt.repeat.Wednesday, true),
-					Thursday:  getBoolWithDefault(tt.repeat.Thursday, true),
-					Friday:    getBoolWithDefault(tt.repeat.Friday, true),
-					Saturday:  getBoolWithDefault(tt.repeat.Saturday, false),
-					Sunday:    getBoolWithDefault(tt.repeat.Sunday, false),
+					Monday:    getBoolFromObject(repeatAttrs, "monday", true),
+					Tuesday:   getBoolFromObject(repeatAttrs, "tuesday", true),
+					Wednesday: getBoolFromObject(repeatAttrs, "wednesday", true),
+					Thursday:  getBoolFromObject(repeatAttrs, "thursday", true),
+					Friday:    getBoolFromObject(repeatAttrs, "friday", true),
+					Saturday:  getBoolFromObject(repeatAttrs, "saturday", false),
+					Sunday:    getBoolFromObject(repeatAttrs, "sunday", false),
 				}
 			} else {
 				// Default repeat config if not specified
@@ -172,24 +215,36 @@ func TestDailyRepeatConfigDefaults(t *testing.T) {
 
 // TestDailyRepeatConfigAllExplicit tests that explicit values are respected
 func TestDailyRepeatConfigAllExplicit(t *testing.T) {
-	repeat := &repeatModel{
-		Monday:    types.BoolValue(false),
-		Tuesday:   types.BoolValue(false),
-		Wednesday: types.BoolValue(true),
-		Thursday:  types.BoolValue(false),
-		Friday:    types.BoolValue(false),
-		Saturday:  types.BoolValue(true),
-		Sunday:    types.BoolValue(true),
-	}
+	repeat := types.ObjectValueMust(
+		map[string]attr.Type{
+			"monday":    types.BoolType,
+			"tuesday":   types.BoolType,
+			"wednesday": types.BoolType,
+			"thursday":  types.BoolType,
+			"friday":    types.BoolType,
+			"saturday":  types.BoolType,
+			"sunday":    types.BoolType,
+		},
+		map[string]attr.Value{
+			"monday":    types.BoolValue(false),
+			"tuesday":   types.BoolValue(false),
+			"wednesday": types.BoolValue(true),
+			"thursday":  types.BoolValue(false),
+			"friday":    types.BoolValue(false),
+			"saturday":  types.BoolValue(true),
+			"sunday":    types.BoolValue(true),
+		},
+	)
 
+	repeatAttrs := repeat.Attributes()
 	repeatConfig := &client.RepeatConfig{
-		Monday:    getBoolWithDefault(repeat.Monday, true),
-		Tuesday:   getBoolWithDefault(repeat.Tuesday, true),
-		Wednesday: getBoolWithDefault(repeat.Wednesday, true),
-		Thursday:  getBoolWithDefault(repeat.Thursday, true),
-		Friday:    getBoolWithDefault(repeat.Friday, true),
-		Saturday:  getBoolWithDefault(repeat.Saturday, false),
-		Sunday:    getBoolWithDefault(repeat.Sunday, false),
+		Monday:    getBoolFromObject(repeatAttrs, "monday", true),
+		Tuesday:   getBoolFromObject(repeatAttrs, "tuesday", true),
+		Wednesday: getBoolFromObject(repeatAttrs, "wednesday", true),
+		Thursday:  getBoolFromObject(repeatAttrs, "thursday", true),
+		Friday:    getBoolFromObject(repeatAttrs, "friday", true),
+		Saturday:  getBoolFromObject(repeatAttrs, "saturday", false),
+		Sunday:    getBoolFromObject(repeatAttrs, "sunday", false),
 	}
 
 	// Only Wednesday and weekend should be true
@@ -210,31 +265,43 @@ func TestDailyModelToTaskConversion(t *testing.T) {
 		Priority:  types.Float64Value(1.5),
 		Frequency: types.StringValue("weekly"),
 		EveryX:    types.Int64Value(1),
-		Repeat: &repeatModel{
-			Monday: types.BoolValue(true),
-			Tuesday: types.BoolValue(true),
-			Wednesday: types.BoolValue(true),
-			Thursday: types.BoolValue(true),
-			Friday: types.BoolValue(true),
-			Saturday: types.BoolNull(), // Should default to false
-			Sunday: types.BoolNull(),   // Should default to false
-		},
+		Repeat: types.ObjectValueMust(
+			map[string]attr.Type{
+				"monday":    types.BoolType,
+				"tuesday":   types.BoolType,
+				"wednesday": types.BoolType,
+				"thursday":  types.BoolType,
+				"friday":    types.BoolType,
+				"saturday":  types.BoolType,
+				"sunday":    types.BoolType,
+			},
+			map[string]attr.Value{
+				"monday":    types.BoolValue(true),
+				"tuesday":   types.BoolValue(true),
+				"wednesday": types.BoolValue(true),
+				"thursday":  types.BoolValue(true),
+				"friday":    types.BoolValue(true),
+				"saturday":  types.BoolNull(), // Should default to false
+				"sunday":    types.BoolNull(), // Should default to false
+			},
+		),
 	}
 
 	// Basic assertions on model
 	assert.Equal(t, "Morning Routine", model.Text.ValueString())
 	assert.Equal(t, "weekly", model.Frequency.ValueString())
-	assert.NotNil(t, model.Repeat)
+	assert.False(t, model.Repeat.IsNull())
 
 	// Test repeat defaults
+	repeatAttrs := model.Repeat.Attributes()
 	repeatConfig := &client.RepeatConfig{
-		Monday:    getBoolWithDefault(model.Repeat.Monday, true),
-		Tuesday:   getBoolWithDefault(model.Repeat.Tuesday, true),
-		Wednesday: getBoolWithDefault(model.Repeat.Wednesday, true),
-		Thursday:  getBoolWithDefault(model.Repeat.Thursday, true),
-		Friday:    getBoolWithDefault(model.Repeat.Friday, true),
-		Saturday:  getBoolWithDefault(model.Repeat.Saturday, false),
-		Sunday:    getBoolWithDefault(model.Repeat.Sunday, false),
+		Monday:    getBoolFromObject(repeatAttrs, "monday", true),
+		Tuesday:   getBoolFromObject(repeatAttrs, "tuesday", true),
+		Wednesday: getBoolFromObject(repeatAttrs, "wednesday", true),
+		Thursday:  getBoolFromObject(repeatAttrs, "thursday", true),
+		Friday:    getBoolFromObject(repeatAttrs, "friday", true),
+		Saturday:  getBoolFromObject(repeatAttrs, "saturday", false),
+		Sunday:    getBoolFromObject(repeatAttrs, "sunday", false),
 	}
 
 	assert.True(t, repeatConfig.Monday)
