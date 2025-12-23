@@ -17,3 +17,7 @@ examples/import/generated.tf
 
 # GoReleaser
 dist/
+
+# Test coverage
+coverage.out
+coverage.html

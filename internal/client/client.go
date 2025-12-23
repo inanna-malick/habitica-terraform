@@ -52,6 +52,7 @@ type Config struct {
 	RateLimitBuffer int
 	MaxRetries      int
 	BaseRetryDelay  time.Duration
+	BaseURL         string // Optional: override API base URL (for testing)
 }
 
 // New creates a new Habitica API client.
@@ -76,8 +77,13 @@ func New(cfg Config) *Client {
 		baseRetryDelay = DefaultRetryDelay
 	}
 
+	baseURL := cfg.BaseURL
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+
 	return &Client{
-		baseURL:            DefaultBaseURL,
+		baseURL:            baseURL,
 		userID:             cfg.UserID,
 		apiKey:             cfg.APIKey,
 		clientID:           fmt.Sprintf("%s-%s", cfg.ClientAuthorID, appName),

@@ -1,4 +1,4 @@
-.PHONY: build install test fmt vet clean fetch-tags fetch-habits fetch-dailies
+.PHONY: build install test test-unit test-coverage test-clean test-verbose fmt vet clean fetch-tags fetch-habits fetch-dailies
 
 # Build the provider binary
 build:
@@ -76,3 +76,22 @@ plan:
 # Run terraform apply
 apply:
 	cd examples/import && terraform apply
+
+# Test targets
+test:
+	go test -v -race -coverprofile=coverage.out ./...
+
+test-unit:
+	go test -v -race -short ./...
+
+test-coverage:
+	go test -v -race -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report: coverage.html"
+
+test-verbose:
+	go test -v -race -coverprofile=coverage.out ./... -count=1
+
+test-clean:
+	go clean -testcache
+	rm -f coverage.out coverage.html
