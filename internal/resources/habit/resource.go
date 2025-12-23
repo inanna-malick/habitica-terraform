@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/float64default"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -71,16 +70,12 @@ func (r *habitResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 				Default:     float64default.StaticFloat64(1),
 			},
 			"up": schema.BoolAttribute{
-				Description: "Whether the habit can be scored positively (+). Defaults to true.",
+				Description: "Whether the habit can be scored positively (+). Defaults to true if not specified.",
 				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(true),
 			},
 			"down": schema.BoolAttribute{
-				Description: "Whether the habit can be scored negatively (-). Defaults to false.",
+				Description: "Whether the habit can be scored negatively (-). Defaults to false if not specified.",
 				Optional:    true,
-				Computed:    true,
-				Default:     booldefault.StaticBool(false),
 			},
 			"tags": schema.ListAttribute{
 				Description: "List of tag IDs to associate with this habit.",
@@ -115,8 +110,9 @@ func (r *habitResource) Create(ctx context.Context, req resource.CreateRequest, 
 		return
 	}
 
-	up := plan.Up.ValueBool()
-	down := plan.Down.ValueBool()
+	// Handle defaults for up/down
+	up := getBoolWithDefault(plan.Up, true)
+	down := getBoolWithDefault(plan.Down, false)
 
 	task := &client.Task{
 		Type:     "habit",
@@ -179,8 +175,9 @@ func (r *habitResource) Update(ctx context.Context, req resource.UpdateRequest, 
 		return
 	}
 
-	up := plan.Up.ValueBool()
-	down := plan.Down.ValueBool()
+	// Handle defaults for up/down
+	up := getBoolWithDefault(plan.Up, true)
+	down := getBoolWithDefault(plan.Down, false)
 
 	task := &client.Task{
 		Text:     plan.Text.ValueString(),
@@ -250,4 +247,12 @@ func (r *habitResource) updateModelFromTask(ctx context.Context, model *habitRes
 
 func (r *habitResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+}
+
+// getBoolWithDefault returns the bool value if not null, otherwise returns the default
+func getBoolWithDefault(val types.Bool, defaultVal bool) bool {
+	if val.IsNull() || val.IsUnknown() {
+		return defaultVal
+	}
+	return val.ValueBool()
 }
