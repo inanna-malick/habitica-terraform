@@ -193,11 +193,33 @@ Use in Create/Update: `field := getBoolWithDefault(plan.Field, true)`
 
 ### Nested Attributes
 
-For `SingleNestedAttribute`:
-- Make parent attribute `Optional: true` (no Computed)
+For `SingleNestedAttribute` that the API can populate:
+- Make parent attribute `Optional: true, Computed: true`
+- Add `objectplanmodifier.UseStateForUnknown()` to prevent "inconsistent result" errors
 - Make child attributes `Optional: true` (no Computed, no Default)
 - Handle defaults in `modelToTask` conversion functions
 - Always populate from API response in `updateModelFromTask`
+
+**Example:**
+```go
+"repeat": schema.SingleNestedAttribute{
+    Optional: true,
+    Computed: true,
+    PlanModifiers: []planmodifier.Object{
+        objectplanmodifier.UseStateForUnknown(),  // ✅ Prevents inconsistent result
+    },
+    Attributes: map[string]schema.Attribute{
+        "monday": schema.BoolAttribute{
+            Optional: true,  // ✅ No Computed, no Default
+        },
+    },
+}
+```
+
+This pattern solves the Catch-22:
+- Without `Computed: true` → "Provider produced inconsistent result" (plan shows null, API returns object)
+- With `Computed: true` but no plan modifier → "Value Conversion Error" (can't convert Unknown to struct)
+- With `Computed: true` + `UseStateForUnknown()` → ✅ Works! (uses state value during plan)
 
 ## Version History
 
@@ -206,3 +228,6 @@ For `SingleNestedAttribute`:
 - **v0.2.1** - Fixed repeat field value conversion errors in dailies
 - **v0.2.2** - Fixed up/down field value conversion errors in habits
 - **v0.2.3** - Fixed inconsistent result after apply errors (re-added Computed without Default)
+- **v0.2.4** - Fixed unknown value conversion error on repeat field (removed Computed from nested attribute) - REGRESSION
+- **v0.2.5** - Fixed repeat field with UseStateForUnknown plan modifier (idiomatic Terraform solution)
+- **Test infrastructure** - Added comprehensive test coverage (58.3% client, regression tests for v0.2.1-2.2)
