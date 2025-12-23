@@ -134,3 +134,63 @@ The Habitica API enforces 30 requests/60 seconds. The client handles this with:
 `scripts/generate_imports.py` fetches all tasks and tags, generates two files:
 - `examples/import/imports.tf` - Temporary import blocks (delete after `terraform apply`)
 - `examples/import/resources.tf` - Permanent resource definitions with tag references
+
+## Critical Schema Patterns
+
+### Avoid Computed+Default Combination
+
+**DO NOT** use `Computed: true` with `Default:` on the same attribute. This causes "Value Conversion Error" when Terraform reconciles config vs state.
+
+**Bad:**
+```go
+"up": schema.BoolAttribute{
+    Optional: true,
+    Computed: true,  // ❌ Don't combine with Default
+    Default:  booldefault.StaticBool(true),
+}
+```
+
+**Good:**
+```go
+"up": schema.BoolAttribute{
+    Description: "Defaults to true if not specified.",
+    Optional:    true,  // ✅ Just Optional, handle defaults in code
+}
+
+// In Create/Update methods:
+up := getBoolWithDefault(plan.Up, true)
+```
+
+This pattern caused bugs in:
+- `habitica_daily.repeat` nested attributes (fixed in v0.2.1)
+- `habitica_habit.up` and `habitica_habit.down` (fixed in v0.2.2)
+
+### Helper Pattern for Defaults
+
+When using Optional-only attributes with defaults:
+
+```go
+func getBoolWithDefault(val types.Bool, defaultVal bool) bool {
+    if val.IsNull() || val.IsUnknown() {
+        return defaultVal
+    }
+    return val.ValueBool()
+}
+```
+
+Use in Create/Update: `field := getBoolWithDefault(plan.Field, true)`
+
+### Nested Attributes
+
+For `SingleNestedAttribute`:
+- Make parent attribute `Optional: true` (no Computed)
+- Make child attributes `Optional: true` (no Computed, no Default)
+- Handle defaults in `modelToTask` conversion functions
+- Always populate from API response in `updateModelFromTask`
+
+## Version History
+
+- **v0.1.0** - Initial release with resources and import support
+- **v0.2.0** - Added `habitica_user_tasks` data source
+- **v0.2.1** - Fixed repeat field value conversion errors in dailies
+- **v0.2.2** - Fixed up/down field value conversion errors in habits
