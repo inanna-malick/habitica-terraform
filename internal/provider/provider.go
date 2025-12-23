@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/inannamalick/terraform-provider-habitica/internal/client"
+	"github.com/inannamalick/terraform-provider-habitica/internal/datasources/user_tasks"
 	"github.com/inannamalick/terraform-provider-habitica/internal/resources/daily"
 	"github.com/inannamalick/terraform-provider-habitica/internal/resources/habit"
 	"github.com/inannamalick/terraform-provider-habitica/internal/resources/tag"
@@ -153,5 +154,7 @@ func (p *HabiticaProvider) Resources(ctx context.Context) []func() resource.Reso
 }
 
 func (p *HabiticaProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
-	return []func() datasource.DataSource{}
+	return []func() datasource.DataSource{
+		user_tasks.NewDataSource,
+	}
 }

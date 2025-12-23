@@ -37,10 +37,10 @@ type Client struct {
 	rateLimitReset     time.Time
 
 	// Caches for bulk fetching
-	taskCache    map[string]*Task
-	taskCacheMu  sync.RWMutex
-	tagCache     map[string]*Tag
-	tagCacheMu   sync.RWMutex
+	taskCache   map[string]*Task
+	taskCacheMu sync.RWMutex
+	tagCache    map[string]*Tag
+	tagCacheMu  sync.RWMutex
 }
 
 // Config holds configuration for creating a new Client.
@@ -423,6 +423,36 @@ func (c *Client) invalidateTaskCache() {
 	c.taskCacheMu.Lock()
 	c.taskCache = nil
 	c.taskCacheMu.Unlock()
+}
+
+// GetAllTasks retrieves all tasks for the user.
+func (c *Client) GetAllTasks(ctx context.Context) ([]Task, error) {
+	resp, err := c.Get(ctx, "/tasks/user")
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp APIResponse[[]Task]
+	if err := json.Unmarshal(resp, &apiResp); err != nil {
+		return nil, fmt.Errorf("unmarshaling response: %w", err)
+	}
+
+	return apiResp.Data, nil
+}
+
+// GetAllTags retrieves all tags for the user.
+func (c *Client) GetAllTags(ctx context.Context) ([]Tag, error) {
+	resp, err := c.Get(ctx, "/tags")
+	if err != nil {
+		return nil, err
+	}
+
+	var apiResp APIResponse[[]Tag]
+	if err := json.Unmarshal(resp, &apiResp); err != nil {
+		return nil, fmt.Errorf("unmarshaling response: %w", err)
+	}
+
+	return apiResp.Data, nil
 }
 
 // Webhook operations

@@ -34,6 +34,7 @@ type Task struct {
 	CounterDown int   `json:"counterDown,omitempty"`
 
 	// Daily-specific fields
+	Completed    bool          `json:"completed,omitempty"`
 	Frequency    string        `json:"frequency,omitempty"`
 	EveryX       int           `json:"everyX,omitempty"`
 	StartDate    *time.Time    `json:"startDate,omitempty"`
