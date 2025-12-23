@@ -62,6 +62,7 @@ func (r *habitResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"notes": schema.StringAttribute{
 				Description: "Extra notes or description for the habit.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"priority": schema.Float64Attribute{
 				Description: "Difficulty level: 0.1 (trivial), 1 (easy), 1.5 (medium), 2 (hard). Defaults to 1.",
@@ -72,10 +73,12 @@ func (r *habitResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"up": schema.BoolAttribute{
 				Description: "Whether the habit can be scored positively (+). Defaults to true if not specified.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"down": schema.BoolAttribute{
 				Description: "Whether the habit can be scored negatively (-). Defaults to false if not specified.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"tags": schema.ListAttribute{
 				Description: "List of tag IDs to associate with this habit.",

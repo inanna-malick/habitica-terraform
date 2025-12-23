@@ -79,6 +79,7 @@ func (r *dailyResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"notes": schema.StringAttribute{
 				Description: "Extra notes or description for the daily.",
 				Optional:    true,
+				Computed:    true,
 			},
 			"priority": schema.Float64Attribute{
 				Description: "Difficulty level: 0.1 (trivial), 1 (easy), 1.5 (medium), 2 (hard). Defaults to 1.",
@@ -106,6 +107,7 @@ func (r *dailyResource) Schema(ctx context.Context, req resource.SchemaRequest, 
 			"repeat": schema.SingleNestedAttribute{
 				Description: "Which days of the week the daily repeats (for weekly frequency).",
 				Optional:    true,
+				Computed:    true,
 				Attributes: map[string]schema.Attribute{
 					"monday": schema.BoolAttribute{
 						Description: "Repeat on Monday. Defaults to true if not specified.",
