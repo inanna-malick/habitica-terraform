@@ -141,6 +141,8 @@ The Habitica API enforces 30 requests/60 seconds. The client handles this with:
 
 **DO NOT** use `Computed: true` with `Default:` on the same attribute. This causes "Value Conversion Error" when Terraform reconciles config vs state.
 
+**Critical:** For optional fields that the API populates, you MUST use `Optional: true, Computed: true` (without `Default:`). Otherwise Terraform will error with "Provider produced inconsistent result after apply" when the API returns values for fields not in the plan.
+
 **Bad:**
 ```go
 "up": schema.BoolAttribute{
@@ -150,20 +152,29 @@ The Habitica API enforces 30 requests/60 seconds. The client handles this with:
 }
 ```
 
+**Also Bad:**
+```go
+"up": schema.BoolAttribute{
+    Optional: true,  // ❌ Missing Computed - will fail if API populates
+}
+```
+
 **Good:**
 ```go
 "up": schema.BoolAttribute{
     Description: "Defaults to true if not specified.",
-    Optional:    true,  // ✅ Just Optional, handle defaults in code
+    Optional:    true,
+    Computed:    true,  // ✅ Allows provider to populate from API
 }
 
-// In Create/Update methods:
+// In Create/Update methods, handle defaults in code:
 up := getBoolWithDefault(plan.Up, true)
 ```
 
-This pattern caused bugs in:
-- `habitica_daily.repeat` nested attributes (fixed in v0.2.1)
-- `habitica_habit.up` and `habitica_habit.down` (fixed in v0.2.2)
+This pattern evolution:
+- v0.2.1: Removed Computed+Default from repeat to fix value conversion errors
+- v0.2.2: Removed Computed+Default from up/down to fix value conversion errors
+- v0.2.3: Re-added Computed (without Default) to fix inconsistent result errors
 
 ### Helper Pattern for Defaults
 
@@ -194,3 +205,4 @@ For `SingleNestedAttribute`:
 - **v0.2.0** - Added `habitica_user_tasks` data source
 - **v0.2.1** - Fixed repeat field value conversion errors in dailies
 - **v0.2.2** - Fixed up/down field value conversion errors in habits
+- **v0.2.3** - Fixed inconsistent result after apply errors (re-added Computed without Default)
