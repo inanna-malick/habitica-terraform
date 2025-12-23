@@ -229,9 +229,17 @@ if !model.Repeat.IsNull() && !model.Repeat.IsUnknown() {
 
 **Set values:**
 ```go
-repeatObj, diags := types.ObjectValueFrom(ctx,
+// Create attribute values map
+repeatAttrs := map[string]attr.Value{
+    "monday": types.BoolValue(true),
+    // ...
+}
+
+// Create ObjectValue (NOT ObjectValueFrom!)
+repeatObj, diags := types.ObjectValue(
     map[string]attr.Type{"monday": types.BoolType, ...},
-    map[string]attr.Value{"monday": types.BoolValue(true), ...})
+    repeatAttrs)
+diags.Append(diags...)
 model.Repeat = repeatObj
 ```
 
@@ -246,5 +254,6 @@ This is the **only way** to avoid "Value Conversion Error" with Optional+Compute
 - **v0.2.3** - Fixed inconsistent result after apply errors (re-added Computed without Default) - REGRESSION
 - **v0.2.4** - Fixed unknown value conversion error on repeat field (removed Computed) - REGRESSION
 - **v0.2.5** - Fixed repeat field with UseStateForUnknown plan modifier - REGRESSION
-- **v0.2.6** - Fixed by changing Go type to types.Object (proper framework type for Unknown values)
+- **v0.2.6** - Changed Go type to types.Object (proper framework type for Unknown values) - REGRESSION
+- **v0.2.7** - Fixed ObjectValue creation (use types.ObjectValue, not ObjectValueFrom)
 - **Test infrastructure** - Added comprehensive test coverage (58.3% client, regression tests for v0.2.1-2.2)
